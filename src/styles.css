@@ -1,0 +1,44 @@
+body {
+  font-family: sans-serif;
+}
+
+.code-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.code-form-input {
+  width: 34px;
+  height: 50px;
+  font-size: 20px;
+  text-align: center;
+}
+
+.skip {
+  font-size: 20px;
+}
+
+#auth-result {
+  font-size: 30px;
+  color: firebrick;
+}
+
+.toast p {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: auto;
+  padding: 16px;
+  color: #fff;
+}
+
+.toastOk p {
+  background-color: green;
+}
+
+.toastError p {
+  background-color: red;
+}
