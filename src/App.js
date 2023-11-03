@@ -1,78 +1,128 @@
 import "./styles.css";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 
-const CodeInput = ({ onCodeComplete }) => {
+const CodeInputForm = () => {
+  const [code, setCode] = useState(Array(5).fill(""));
+  const [authResult, setAuthResult] = useState("");
+  const [toastMessages, setToastMessages] = useState({ ok: "", error: "" });
   const inputRefs = useRef([]);
-  const [codeInputs, setCodeInputs] = useState(Array(6).fill(""));
 
-  const validateInput = (input) => /^[a-zA-Z0-9\-_]*$/.test(input);
+  const handleInputChange = (index) => (event) => {
+    const value = event.target.value.toUpperCase();
 
-  const handleChange = (value, index) => {
-    const upperValue = value.toUpperCase();
-    if (validateInput(upperValue)) {
-      const newCodeInputs = [...codeInputs];
-      newCodeInputs[index] = upperValue;
-      setCodeInputs(newCodeInputs);
-      // Try to focus next input if exists and is not a skip input
-      const nextInputRef = inputRefs.current[index + 1];
-      if (nextInputRef && !nextInputRef.classList.contains("skip")) {
-        nextInputRef.focus();
-      }
-      if (newCodeInputs.join("").length === 5) {
-        onCodeComplete(newCodeInputs.join(""));
+    if (/^[a-zA-Z0-9\-_]*$/.test(value)) {
+      const newCode = [...code];
+      newCode[index] = value;
+      setCode(newCode);
+
+      // Focus the next input
+      if (index < 4) {
+        const nextInput = inputRefs.current[index + 1];
+        if (nextInput) {
+          nextInput.focus();
+        }
       }
     } else {
       alert("半角英数字で入力してください");
+      const newCode = [...code];
+      newCode[index] = "";
+      setCode(newCode);
+    }
+
+    if (code.join("").length === 4 && value) {
+      submitCode(newCode.join("") + value);
     }
   };
 
-  const handlePaste = (e, index) => {
-    e.preventDefault();
-    const pastedData = (e.clipboardData || window.clipboardData)
+  const handlePaste = (event) => {
+    event.preventDefault();
+    const pastedData = (event.clipboardData || window.clipboardData)
       .getData("Text")
       .toUpperCase()
       .replace(/-/g, "");
 
-    let validLength = 0;
-    for (let i = 0; i < pastedData.length; i++) {
-      if (validateInput(pastedData[i])) {
-        validLength++;
+    let validPastedData = "";
+    for (let char of pastedData) {
+      if (/^[a-zA-Z0-9]*$/.test(char)) {
+        validPastedData += char;
       } else {
         break;
       }
     }
 
-    const newCodeInputs = [...codeInputs];
-    for (let i = 0; i < 6 && i < validLength; i++) {
-      newCodeInputs[index + i] = pastedData[i];
+    if (validPastedData.length !== pastedData.length) {
+      alert("不正な値が含まれています。");
+      return;
     }
-    setCodeInputs(newCodeInputs);
 
-    if (validLength !== pastedData.length) {
-      alert("不正な値が含まれて入れています。");
-    } else if (newCodeInputs.join("").length === 5) {
-      onCodeComplete(newCodeInputs.join(""));
+    const splitData = validPastedData.split("");
+    setCode(splitData.concat(Array(5 - splitData.length).fill("")));
+    splitData.forEach((char, index) => {
+      const input = inputRefs.current[index];
+      if (input) {
+        input.value = char;
+      }
+    });
+
+    if (validPastedData.length === 5) {
+      submitCode(validPastedData);
     }
   };
 
-  // You should implement onCodeComplete function to handle the completed code
-  // For example, posting it to a server or validating it in some way.
+  const submitCode = (finalCode) => {
+    // Replace this URL with your actual endpoint
+    fetch("url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ CODE: finalCode }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("サーバ側でエラーが発生しました");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        // Handle success response
+        setAuthResult("ok");
+        // Redirect to the next page or perform other success actions
+      })
+      .catch((error) => {
+        // Handle error response
+        setAuthResult("error");
+        setToastMessages((prev) => ({
+          ...prev,
+          error: "サーバ側でエラーが発生しました",
+        }));
+      });
+  };
 
   return (
-    <div>
-      {codeInputs.map((value, index) => (
-        <input
-          key={index}
-          className="code-form-input"
-          value={value}
-          onChange={(e) => handleChange(e.target.value, index)}
-          onPaste={(e) => handlePaste(e, index)}
-          ref={(el) => (inputRefs.current[index] = el)}
-        />
-      ))}
-      {/* Other elements like toast notifications and result icons go here */}
-    </div>
+    <>
+      <div className="code-form">
+        {Array.from({ length: 5 }, (_, index) => (
+          <React.Fragment key={index}>
+            {index === 3 && <span className="skip">-</span>}
+            <input
+              className="code-form-input"
+              type="text"
+              maxLength="1"
+              pattern="^[a-zA-Z0-9]+$"
+              value={code[index]}
+              onInput={handleInputChange(index)}
+              onPaste={handlePaste}
+              ref={(el) => (inputRefs.current[index] = el)}
+            />
+          </React.Fragment>
+        ))}
+      </div>
+      <div id="auth-result">{authResult === "ok" ? "✅" : "❌"}</div>
+      <div className="toast toastOk">{toastMessages.ok}</div>
+      <div className="toast toastError">{toastMessages.error}</div>
+    </>
   );
 };
 
-export default CodeInput;
+export default CodeInputForm;
